@@ -53,5 +53,5 @@ jobs:
             git config user.name "GitHub Actions"
             git add .
             git commit -m "Deploy to Hugging Face = ${{ env.GIT_SHA }}" || echo "No changes"
-            git push https://oauth2:${HF_TOKEN}@huggingface.co/spaces/nachikethmurthy666/mid-project-project
+            git push --force https://oauth2:${HF_TOKEN}@huggingface.co/spaces/nachikethmurthy666/mid-project-project
 
