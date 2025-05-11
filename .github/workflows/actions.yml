@@ -7,6 +7,7 @@ on:
 
 env:
   DOCKER_IMAGE_NAME: mid-program-project-demo
+  HF_SPACE_REPO_URL: https://huggingface.co/spaces/nachikethmurthy666/mid-project-project
 
 jobs:
   build-and-push:
@@ -15,6 +16,9 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # Fetch all history for all branches and tags
+          lfs: true      # Checkout LFS files
 
       - name: Get Commit hash
         id: vars
@@ -31,27 +35,32 @@ jobs:
           docker push ${{ secrets.DOCKER_USERNAME }}/${{ env.DOCKER_IMAGE_NAME }}:${{ env.GIT_SHA }}
           docker push ${{ secrets.DOCKER_USERNAME }}/${{ env.DOCKER_IMAGE_NAME }}:latest
 
-      - name: Push to Hugging Face Space
+      - name: Install Git LFS and Push to Hugging Face Space
         env:
           HF_TOKEN: ${{ secrets.HF_TOKEN }}
         run: |
-          # Clone the Hugging Face Space
-            git clone --depth=1000 https://oauth2:${HF_TOKEN}@huggingface.co/spaces/nachikethmurthy666/mid-project-project hf-app
+          # Ensure git-lfs is installed (GitHub runners usually have it, but good practice)
+          sudo apt-get update
+          sudo apt-get install -y git-lfs
+          git lfs install --system # Initialize LFS for the system
 
-            # Create a safe temp directory outside the repo path
-            TEMP_DIR=$(mktemp -d)
+          # The 'actions/checkout' step above has already cloned your repository
+          # and fetched LFS files because of `lfs: true` and `Workspace-depth: 0`.
 
-            # Copy everything from the current repo into the temp folder
-            rsync -av --delete --exclude=".git" ./ $TEMP_DIR/
-
-            # Sync from temp folder to the cloned hf-app
-            rsync -av --delete $TEMP_DIR/ hf-app/
-
-            # Commit and push
-            cd hf-app
-            git config user.email "actions@github.com"
-            git config user.name "GitHub Actions"
-            git add .
-            git commit -m "Deploy to Hugging Face = ${{ env.GIT_SHA }}" || echo "No changes"
-            git push --force https://oauth2:${HF_TOKEN}@huggingface.co/spaces/nachikethmurthy666/mid-project-project
-
+          # Set up user for potential commits if needed (though direct push might not require a new commit)
+          git config user.email "actions@github.com"
+          git config user.name "GitHub Actions"
+          
+          echo "Setting remote for Hugging Face Space"
+          # Add the Hugging Face Space as a remote.
+          # The URL uses oauth2 for token-based authentication.
+          git remote add huggingface https://oauth2:${HF_TOKEN}@${HF_SPACE_REPO_URL#https://}
+          
+          echo "Pushing to Hugging Face Space: ${{ env.HF_SPACE_REPO_URL }}"
+          # Push the main branch to the Hugging Face Space.
+          # --force is used to overwrite the history on the Space, ensuring it matches your GitHub repo.
+          # This should resolve the "shallow update not allowed" because the local repo now has full history.
+          # LFS files will be pushed automatically.
+          git push --force huggingface main
+          
+          echo "Successfully pushed to Hugging Face Space"
