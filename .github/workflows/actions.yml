@@ -31,7 +31,7 @@ jobs:
             HF_TOKEN: ${{ secrets.HF_TOKEN }}
         run: |
             git clone https://huggingface.co/spaces/nachikethmurthy666/mid-project-project hf-app
-            rsync -av --delete ./ hf-app/
+            rsync -av --delete --exclude=".git" ./ hf-app/
             cd hf-app
             git add .
             git commit -m "Deploy to Hugging Face = {{env.GIT_SHA}}"
