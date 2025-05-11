@@ -5,34 +5,51 @@ on:
     branches:
       - main
 
+env:
+  DOCKER_IMAGE_NAME: mid-program-project-demo
+
 jobs:
   build-and-push:
     runs-on: ubuntu-latest
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
 
       - name: Get Commit hash
         id: vars
-        run: echo "GIT_SHA=$(git rev-parse HEAD)" >> $GITHUB_ENV
-      
+        run: echo "GIT_SHA=$(git rev-parse --short HEAD)" >> $GITHUB_ENV
+
       - name: Build Docker Image with commit hash
         run: |
-          docker build -t ${{ secrets.DOCKER_USERNAME }}/mid-program-project-demo:${{env.GIT_SHA}} -t ${{ secrets.DOCKER_USERNAME }}/mid-program-project-demo:latest .
+          docker build -t ${{ secrets.DOCKER_USERNAME }}/${{ env.DOCKER_IMAGE_NAME }}:${{ env.GIT_SHA }} \
+                       -t ${{ secrets.DOCKER_USERNAME }}/${{ env.DOCKER_IMAGE_NAME }}:latest .
 
       - name: Push Docker Image
         run: |
-          echo ${{ secrets.DOCKER_PASSWORD }} | docker login -u ${{ secrets.DOCKER_USERNAME }} --password-stdin
-          docker push ${{ secrets.DOCKER_USERNAME }}/mid-program-project-demo:${{env.GIT_SHA}}
-          docker push ${{ secrets.DOCKER_USERNAME }}/mid-program-project-demo:latest
-    
+          echo "${{ secrets.DOCKER_PASSWORD }}" | docker login -u ${{ secrets.DOCKER_USERNAME }} --password-stdin
+          docker push ${{ secrets.DOCKER_USERNAME }}/${{ env.DOCKER_IMAGE_NAME }}:${{ env.GIT_SHA }}
+          docker push ${{ secrets.DOCKER_USERNAME }}/${{ env.DOCKER_IMAGE_NAME }}:latest
+
       - name: Push to Hugging Face Space
         env:
-            HF_TOKEN: ${{ secrets.HF_TOKEN }}
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
         run: |
-            git clone https://huggingface.co/spaces/nachikethmurthy666/mid-project-project hf-app
-            rsync -av --delete --exclude=".git" ./ hf-app/
-            cd hf-app
-            git add .
-            git commit -m "Deploy to Hugging Face = {{env.GIT_SHA}}"
-            git push
+          # Clone Space repo
+          git clone https://oauth2:${HF_TOKEN}@huggingface.co/spaces/nachikethmurthy666/mid-project-project hf-app
+
+          # Copy content safely to temp folder
+          mkdir temp && cp -r . temp/
+
+          # Remove Git-related files from temp copy
+          rm -rf temp/.git temp/.github temp/.gitattributes
+
+          # Rsync temp into Hugging Face Space clone
+          rsync -av --delete temp/ hf-app/
+
+          cd hf-app
+          git config user.email "actions@github.com"
+          git config user.name "GitHub Actions"
+          git add .
+          git commit -m "Deploy to Hugging Face = ${{ env.GIT_SHA }}" || echo "No changes to commit"
+          git push
