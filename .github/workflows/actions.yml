@@ -35,21 +35,22 @@ jobs:
         env:
           HF_TOKEN: ${{ secrets.HF_TOKEN }}
         run: |
-          # Clone Space repo
-          git clone https://oauth2:${HF_TOKEN}@huggingface.co/spaces/nachikethmurthy666/mid-project-project hf-app
+          # Clone the Hugging Face Space
+            git clone https://oauth2:${HF_TOKEN}@huggingface.co/spaces/nachikethmurthy666/mid-project-project hf-app
 
-          # Copy content safely to temp folder
-          mkdir temp && cp -r . temp/
+            # Create a safe temp directory outside the repo path
+            TEMP_DIR=$(mktemp -d)
 
-          # Remove Git-related files from temp copy
-          rm -rf temp/.git temp/.github temp/.gitattributes
+            # Copy everything from the current repo into the temp folder
+            rsync -av --delete --exclude=".git" ./ $TEMP_DIR/
 
-          # Rsync temp into Hugging Face Space clone
-          rsync -av --delete temp/ hf-app/
+            # Sync from temp folder to the cloned hf-app
+            rsync -av --delete $TEMP_DIR/ hf-app/
 
-          cd hf-app
-          git config user.email "actions@github.com"
-          git config user.name "GitHub Actions"
-          git add .
-          git commit -m "Deploy to Hugging Face = ${{ env.GIT_SHA }}" || echo "No changes to commit"
-          git push
+            # Commit and push
+            cd hf-app
+            git config user.email "actions@github.com"
+            git config user.name "GitHub Actions"
+            git add .
+            git commit -m "Deploy to Hugging Face = ${{ env.GIT_SHA }}" || echo "No changes"
+            git push
