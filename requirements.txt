@@ -5,3 +5,4 @@ uvicorn
 pydantic
 pytest-cov
 pytest-html
+httpx
