@@ -3,3 +3,5 @@ joblib==1.2.0
 fastapi
 uvicorn
 pydantic
+pytest-cov
+pytest-html
